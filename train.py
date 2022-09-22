@@ -106,7 +106,7 @@ def main():
     parser.add_argument("--log_interval", type=int, default=1000)
     parser.add_argument("--ckpt_interval", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=1)
-    #parser.add_argument("--num_workers", type=int, default=1)
+    parser.add_argument("--num_workers", type=int, default=1)
     parser.add_argument("--restore", action='store_true')
     parser.add_argument("--restore_path", type=str, help='checkpoint path to restore')
   
@@ -139,6 +139,7 @@ def main():
 
     train_loader = DataLoader(train_dataset,
                               batch_size=args.batch_size,
+                              num_workers=args.num_workers,
                               shuffle=True,
                               pin_memory=True,
                               drop_last=True
@@ -181,49 +182,50 @@ def main():
         
         while step <= args.max_steps:
 
-            trainer.model.train()
-            if step < args.warmup_steps:
-                learning_rate = args.learning_rate * (step/ args.warmup_steps)
-            else:
-                learning_rate = args.learning_rate
+            for batch in train_loader:
 
-            learning_rate = learning_rate * (args.decay_rate ** (
-                step / args.decay_steps))
+                trainer.model.train()
+                if step < args.warmup_steps:
+                    learning_rate = args.learning_rate * (step/ args.warmup_steps)
+                else:
+                    learning_rate = args.learning_rate
 
-            trainer.optimizer.param_groups[0]['lr'] = learning_rate
+                learning_rate = learning_rate * (args.decay_rate ** (
+                    step / args.decay_steps))
 
-            inputs = next(iter(train_loader))
-            loss = trainer.train_step(inputs['imgs'])
+                trainer.optimizer.param_groups[0]['lr'] = learning_rate
 
-            if step % args.log_interval == 0:
-                writer.add_scalar('train_loss', loss.item(), step)
-                trainer.model.eval()
-                sample_imgs = trainer.visualize(fixed_imgs)
-                writer.add_image(f'slots at epoch {step}', sample_imgs, step)
-                save_image(sample_imgs, os.path.join(logdir, f'slots_at_{step}.jpg'))
+                loss = trainer.train_step(batch['imgs'])
 
-                total_loss = 0
-                for batch in test_loader:
-                    loss = trainer.test_step(batch['imgs'])
-                    total_loss += loss.item()
-                test_loss = total_loss/len(test_loader)
+                if step % args.log_interval == 0:
+                    writer.add_scalar('train_loss', loss.item(), step)
+                    trainer.model.eval()
+                    sample_imgs = trainer.visualize(fixed_imgs)
+                    writer.add_image(f'slots at epoch {step}', sample_imgs, step)
+                    save_image(sample_imgs, os.path.join(logdir, f'slots_at_{step}.jpg'))
 
-                writer.add_scalar('test_loss',test_loss, step)
+                    total_loss = 0
+                    for batch in test_loader:
+                        loss = trainer.test_step(batch['imgs'])
+                        total_loss += loss.item()
+                    test_loss = total_loss/len(test_loader)
 
-                print("###############################")
-                print(f"At training step {step}")
-                print("###############################")
-                print(f"Train_loss: {loss.item():.6f}")
-                print(f"test_loss: {test_loss:.6f}")   
+                    writer.add_scalar('test_loss',test_loss, step)
 
-                time_since_start = time.time() - start_time
-                print(f"Time Since Start {time_since_start:.6f}")
+                    print("###############################")
+                    print(f"At training step {step}")
+                    print("###############################")
+                    print(f"Train_loss: {loss.item():.6f}")
+                    print(f"test_loss: {test_loss:.6f}")   
 
-            if step % args.ckpt_interval == 0:
-                trainer.save(logdir)
+                    time_since_start = time.time() - start_time
+                    print(f"Time Since Start {time_since_start:.6f}")
 
-            step+=1
-            trainer.step = step
+                if step % args.ckpt_interval == 0:
+                    trainer.save(logdir)
+
+                step+=1
+                trainer.step = step
          
     if args.test:
         print("Testing")
