@@ -7,7 +7,8 @@ import torch.distributions as dist
 
 class SlotAttention(nn.Module):
 
-    def __init__(self, in_dim, slot_size, num_slots, num_iters, mlp_hdim, epsilon =1e-8):
+    def __init__(self, in_dim, slot_size, num_slots, num_iters, mlp_hdim, 
+                                                                epsilon =1e-8, implicit_grads=False):
 
         super().__init__()
 
@@ -15,6 +16,7 @@ class SlotAttention(nn.Module):
         self.num_iters = num_iters
         self.slot_size = slot_size
         self.epsilon = epsilon
+        self.implicit_grads = implicit_grads
 
         self.project_q = nn.Linear(slot_size, slot_size, bias=False)
         self.project_k = nn.Linear(in_dim, slot_size, bias=False)
@@ -36,6 +38,28 @@ class SlotAttention(nn.Module):
         self.slots_logsigma = nn.Parameter(nn.init.xavier_uniform_(torch.ones( 1, self.slot_size)))
 
 
+    def step(self, slots, k, v):
+
+        slots_prev = slots
+        slots = self.norm_slots(slots)
+        q = self.project_q(slots) # shape: [batch_size, num_slots, slot_size]
+        scores = (self.slot_size ** -0.5) * torch.matmul(k, q.transpose(2, 1))
+        attn = torch.softmax(scores, dim=-1) # shape: [batch_size, num_inputs, num_slots]
+
+        #weighted mean 
+        attn = attn + self.epsilon
+        attn = attn/ torch.sum(attn, dim=1, keepdim=True) #shape: [batch_size, num_inputs, num_slots]
+
+        updates = torch.matmul(attn.transpose(2, 1), v) #shape: [batch_size, num_slots, slot_size]
+
+        slots = self.gru(updates.reshape(-1, self.slot_size), slots_prev.reshape(-1, self.slot_size))
+        slots = slots.reshape(batch_size, self.num_slots, self.slot_size)
+        slots = self.norm_mlp(slots)
+        #slots = self.mlp(slots)
+        slots = slots + self.mlp(slots)
+
+        return slots
+
     def forward(self, x):
 
         batch_size, num_inputs, in_dim = x.shape
@@ -50,24 +74,10 @@ class SlotAttention(nn.Module):
         slots = slots_dist.rsample()
 
         for _ in range(self.num_iters):
+            slots = self.step(slots, k, v)
 
-            slots_prev = slots
-            slots = self.norm_slots(slots)
-            q = self.project_q(slots) # shape: [batch_size, num_slots, slot_size]
-            scores = (self.slot_size ** -0.5) * torch.matmul(k, q.transpose(2, 1))
-            attn = torch.softmax(scores, dim=-1) # shape: [batch_size, num_inputs, num_slots]
-
-            #weighted mean 
-            attn = attn + self.epsilon
-            attn = attn/ torch.sum(attn, dim=1, keepdim=True) #shape: [batch_size, num_inputs, num_slots]
-
-            updates = torch.matmul(attn.transpose(2, 1), v) #shape: [batch_size, num_slots, slot_size]
-
-            slots = self.gru(updates.reshape(-1, self.slot_size), slots_prev.reshape(-1, self.slot_size))
-            slots = slots.reshape(batch_size, self.num_slots, self.slot_size)
-            slots = self.norm_mlp(slots)
-            #slots = self.mlp(slots)
-            slots = slots + self.mlp(slots)
+        if self.implicit_grads:
+            slots = self.step(slots.detach(), k, v)
 
         return slots
 
