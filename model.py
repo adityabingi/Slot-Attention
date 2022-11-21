@@ -93,7 +93,8 @@ class SlotAttentionModel(nn.Module):
            hdim = 32,
            slot_size = 64,
            slot_mlp_size = 128,
-           decoder_resolution=(35, 35)):
+           decoder_resolution=(35, 35),
+           implicit_grads = False):
 
         super().__init__()
 
@@ -125,7 +126,8 @@ class SlotAttentionModel(nn.Module):
                                 slot_size=self.slot_size,
                                 num_slots=self.num_slots,
                                 num_iters=num_iters,
-                                mlp_hdim =slot_mlp_size
+                                mlp_hdim =slot_mlp_size,
+                                implicit_grads = implicit_grads
                               )
         
         self.decoder_pos_embed = PositionEmbed(slot_size, self.decoder_resolution, device)

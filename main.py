@@ -90,6 +90,7 @@ def main():
     parser.add_argument("--train", action="store_true")
     parser.add_argument("--test", action="store_true")
     parser.add_argument("--visualize", action='store_true')
+    parser.add_argument("--use_implicit_grads", action='store_true')
     parser.add_argument("--n_samples", type=int, default=4, help='number of sample imgs to visualize')
     parser.add_argument("--data_path",  type=str, default='Tetrominoes')
     parser.add_argument("--train_h5_path", type=str, default='tetrominoes.h5')
@@ -160,7 +161,8 @@ def main():
                     hdim = 32,
                     slot_size = 64,
                     slot_mlp_size = 128,
-                    decoder_resolution=(35, 35))
+                    decoder_resolution=(35, 35),
+                    implicit_grads = args.use_implicit_grads)
     optimizer = optim.Adam(model.parameters(), lr = args.learning_rate)
 
     trainer = Trainer(model, optimizer, device)
