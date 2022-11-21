@@ -38,7 +38,7 @@ class SlotAttention(nn.Module):
         self.slots_logsigma = nn.Parameter(nn.init.xavier_uniform_(torch.ones( 1, self.slot_size)))
 
 
-    def step(self, slots, k, v):
+    def step(self, slots, k, v, batch_size):
 
         slots_prev = slots
         slots = self.norm_slots(slots)
@@ -74,10 +74,10 @@ class SlotAttention(nn.Module):
         slots = slots_dist.rsample()
 
         for _ in range(self.num_iters):
-            slots = self.step(slots, k, v)
+            slots = self.step(slots, k, v, batch_size)
 
         if self.implicit_grads:
-            slots = self.step(slots.detach(), k, v)
+            slots = self.step(slots.detach(), k, v, batch_size)
 
         return slots
 
