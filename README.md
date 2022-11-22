@@ -1,5 +1,7 @@
 # Slot-Attention
-This is a minimalistic PyTorch implementation of [Object-Centric Learning with Slot Attention](https://arxiv.org/pdf/2006.15055.pdf) for Tetrominoes dataset
+This is a minimalistic PyTorch implementation of [Object-Centric Learning with Slot Attention](https://arxiv.org/pdf/2006.15055.pdf) for Tetrominoes dataset.
+#### Update: 
+Added functionality for Implicit slot-attention method as proposed in paper [Object Representations as Fixed Points: Training Iterative Refinement Algorithms with Implicit Differentiation](https://arxiv.org/pdf/2207.00787.pdf)
 
 # Training Results
 Below are the slot visualizations of sample test_images after training for 100k steps
@@ -17,6 +19,10 @@ This code uses only `h5py` versions of this dataset that @pemami4911 created by 
 Training with default hyperparameters (for hyperparams check argparser in main.py) for Tetrominoes Dataset
 
 `python main.py --train`
+
+For training implicit slot-attention as proposed in [Object Representations as Fixed Points: Training Iterative Refinement Algorithms with Implicit Differentiation](https://arxiv.org/pdf/2207.00787.pdf)
+
+`python main.py --train --use_implicit_grads`
 
 For testing on validation data 
 
